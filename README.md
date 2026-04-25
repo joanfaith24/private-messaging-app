@@ -65,9 +65,28 @@ VITE_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 npm run dev
 \```
 
+
+
 ## 📸 Screenshots
 
-<!-- Add your screenshots here -->
+### Login Page
+![Login]
+mobile-(screenshots/login-mobile.jpg)
+desktop-(screenshots/login-desktop.jpg)
+
+### Chat Page
+![Chat]
+mobile-(screenshots/chatbox-mobile.jpg)
+desktop-(screenshots/chatbox-desktop.jpg)
+
+### Video Call
+![Video Call]
+mobile-(screenshots/oncall-mobile.jpg)
+desktop-(screenshots/whileoncall-desktop.jpg)
+while waiting :
+mobile-(screenshots/waitingforanswer-mobile.jpg)
+desktop-(screenshots/waitingforanswer-desktop.jpg)
+
 
 ## 👩‍💻 Author
 
