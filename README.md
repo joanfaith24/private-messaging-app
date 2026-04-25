@@ -1,16 +1,79 @@
-# React + Vite
+# 💬 Private Messaging App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A real-time private messaging application built with React, Firebase, and Agora — similar to WhatsApp with video calling support.
 
-Currently, two official plugins are available:
+## 🌐 Live Demo
+[View Live App] https://joan-private-messaging-app.web.app
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 🔐 **Authentication** — Email/Password and Google Sign-In
+- 💬 **Real-time Messaging** — Instant private messages between users
+- 📞 **Video Calling** — Real-time video calls powered by Agora
+- 📷 **Image Sharing** — Share photos in conversations
+- 🟢 **Online/Offline Status** — See who's active
+- ✅ **Read Receipts** — Know when messages are seen
+- 👥 **Contact Management** — Add and delete contacts
+- 🔍 **Search Contacts** — Find contacts quickly
+- 📋 **Call History** — See call logs in chat
+- 📱 **Mobile Responsive** — Works on all devices
 
-## React Compiler
+## 🛠️ Built With
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React + Vite
+- **Styling:** Tailwind CSS
+- **Backend:** Firebase (Auth + Firestore)
+- **Video Calls:** Agora RTC SDK
+- **Image Hosting:** Cloudinary
+- **Deployment:** Firebase Hosting
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+- Node.js
+- Firebase account
+- Agora account
+- Cloudinary account
+
+### Installation
+
+1. Clone the repo:
+\```bash
+git clone https://github.com/yourusername/private-messaging-app.git
+cd private-messaging-app
+\```
+
+2. Install dependencies:
+\```bash
+npm install
+\```
+
+3. Create `.env` file:
+\```
+VITE_FIREBASE_API_KEY=your_key
+VITE_FIREBASE_AUTH_DOMAIN=your_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_AGORA_APP_ID=your_agora_app_id
+VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
+\```
+
+4. Run the app:
+\```bash
+npm run dev
+\```
+
+## 📸 Screenshots
+
+<!-- Add your screenshots here -->
+
+## 👩‍💻 Author
+
+**Joan Faith**
+- GitHub: [@joanfaith24](https://github.com/joanfaith24)
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
