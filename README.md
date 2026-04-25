@@ -70,22 +70,28 @@ npm run dev
 ## 📸 Screenshots
 
 ### Login Page
-![Login]
-mobile-(screenshots/login-mobile.jpg)
-desktop-(screenshots/login-desktop.jpg)
+![Login Mobile](screenshots/login-mobile.jpg)
+![Login Desktop](screenshots/login-desktop.jpg)
+
+### Home Page
+![Home Mobile](screenshots/home-mobile.jpg)
+![Home Desktop](screenshots/home-desktop.jpg)
 
 ### Chat Page
-![Chat]
-mobile-(screenshots/chatbox-mobile.jpg)
-desktop-(screenshots/chatbox-desktop.jpg)
+![Chat Mobile](screenshots/chatbox-mobile.jpg)
+![Chat Desktop](screenshots/chatbox-desktop.jpg)
 
 ### Video Call
-![Video Call]
-mobile-(screenshots/oncall-mobile.jpg)
-desktop-(screenshots/whileoncall-desktop.jpg)
-while waiting :
-mobile-(screenshots/waitingforanswer-mobile.jpg)
-desktop-(screenshots/waitingforanswer-desktop.jpg)
+![On Call Mobile](screenshots/oncall-mobile.jpg)
+![On Call Desktop](screenshots/whileoncall-desktop.jpg)
+
+### Waiting For Answer
+![Waiting Mobile](screenshots/waitingforanswer-mobile.jpg)
+![Waiting Desktop](screenshots/waitngforanswer-desktop.jpg)
+
+### After Call
+![After Call Mobile](screenshots/aftercall-mobile.jpg)
+![After Call Desktop](screenshots/aftercall-desktop.jpg)
 
 
 ## 👩‍💻 Author
