@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp} from "firebase/firestore";
 import Auth from "./components/Auth.jsx";
 import Navbar from "./components/Navbar.jsx";
 import UserList from "./components/UserList.jsx";
@@ -20,17 +20,40 @@ function App() {
       setLoading(false);
 
       if (currentUser) {
-        await updateDoc(doc(db, "users", currentUser.uid), {
-          isOnline: true,
-          lastSeen: serverTimestamp()
-        });
+        const userRef = doc(db, "users", currentUser.uid);
 
-        window.addEventListener("beforeunload", async () => {
-          await updateDoc(doc(db, "users", currentUser.uid), {
+        // ── Use setDoc with merge:true so it works for NEW and EXISTING users ──
+        await setDoc(userRef, {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || currentUser.email,
+          photoURL: currentUser.photoURL || null,
+          isOnline: true,
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+
+        // ── Set offline on tab close (sync, not async — more reliable) ──
+        const setOffline = () => {
+          // Use sendBeacon for reliable fire-and-forget on tab close
+          const userRef = doc(db, "users", currentUser.uid);
+          setDoc(userRef, {
             isOnline: false,
-            lastSeen: serverTimestamp()
-          });
-        });
+            lastSeen: serverTimestamp(),
+          }, { merge: true });
+        };
+
+        window.addEventListener("beforeunload", setOffline);
+        window.addEventListener("pagehide", setOffline);
+
+        // Cleanup
+        return () => {
+          setOffline();
+          window.removeEventListener("beforeunload", setOffline);
+          window.removeEventListener("pagehide", setOffline);
+        };
+
+      } else {
+        // User logged out — already handled in Navbar but fallback here
       }
     });
 
@@ -64,7 +87,7 @@ function App() {
       <Navbar user={user} />
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Sidebar - full width on mobile, fixed width on desktop */}
+        {/* Sidebar */}
         {showSidebar && (
           <div className={`${isMobile ? "w-full" : "w-64 shrink-0"} bg-gray-800 flex flex-col border-r border-gray-700 relative`}>
             <UserList
@@ -76,7 +99,7 @@ function App() {
           </div>
         )}
 
-        {/* Chat - hidden on mobile when sidebar is shown */}
+        {/* Chat */}
         {(!isMobile || !showSidebar) && (
           <div className="flex-1 flex flex-col min-w-0">
             <Chat

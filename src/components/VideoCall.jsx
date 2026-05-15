@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { db } from "../firebase.js";
 import { doc, setDoc } from "firebase/firestore";
+
+const appId = import.meta.env.VITE_AGORA_APP_ID;
 
 function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
   const [remoteUsers, setRemoteUsers] = useState([]);
@@ -10,11 +12,13 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
   const localVideoRef = useRef(null);
   const clientRef = useRef(null);
   const localTracksRef = useRef([]);
-  const callStartRef = useRef(Date.now());
+  const callStartRef = useRef(null);
   const handleEndCallRef = useRef(null);
 
-  const appId = import.meta.env.VITE_AGORA_APP_ID;
-  const channel = [currentUser.uid, selectedUser.uid].sort().join("_");
+  const channel = useMemo(
+    () => [currentUser.uid, selectedUser.uid].sort().join("_"),
+    [currentUser.uid, selectedUser.uid]
+  );
 
   const handleEndCall = async () => {
     const duration = Math.floor((Date.now() - callStartRef.current) / 1000);
@@ -22,19 +26,18 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
     const seconds = duration % 60;
     const durationText = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
-    // Signal end to both users with initiator info and duration
     try {
       await setDoc(doc(db, "calls", selectedUser.uid), {
         status: "ended",
         duration: durationText,
-        initiatorUid: initiatorUid
+        initiatorUid: initiatorUid,
       });
       await setDoc(doc(db, "calls", currentUser.uid), {
         status: "ended",
         duration: durationText,
-        initiatorUid: initiatorUid
+        initiatorUid: initiatorUid,
       });
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     }
 
@@ -45,16 +48,35 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
 
     try {
       await clientRef.current?.leave();
-    } catch(err) {
+    } catch (err) {
       console.error("Leave error:", err);
     }
 
     onEndCall();
   };
 
-  handleEndCallRef.current = handleEndCall;
-
+  // Keep handleEndCallRef in sync after every render
   useEffect(() => {
+    handleEndCallRef.current = handleEndCall;
+  });
+
+  // Play remote video when remoteUsers changes
+  useEffect(() => {
+    remoteUsers.forEach((user) => {
+      if (user.videoTrack) {
+        const container = document.getElementById("remote-container");
+        if (container) {
+          container.innerHTML = "";
+          user.videoTrack.play(container);
+        }
+      }
+    });
+  }, [remoteUsers]);
+
+  // Agora init
+  useEffect(() => {
+    callStartRef.current = Date.now();
+
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     clientRef.current = client;
 
@@ -62,20 +84,21 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
       try {
         client.on("user-published", async (user, mediaType) => {
           await client.subscribe(user, mediaType);
+
           if (mediaType === "video") {
             setRemoteUsers((prev) => {
               const exists = prev.find((u) => u.uid === user.uid);
               if (exists) return prev;
               return [...prev, user];
             });
-            setTimeout(() => {
-              const container = document.getElementById("remote-container");
-              if (container) {
-                container.innerHTML = "";
-                user.videoTrack?.play(container);
-              }
-            }, 1000);
+
+            const container = document.getElementById("remote-container");
+            if (container) {
+              container.innerHTML = "";
+              user.videoTrack?.play(container);
+            }
           }
+
           if (mediaType === "audio") {
             user.audioTrack?.play();
           }
@@ -103,7 +126,7 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
               bitrateMin: 400,
               bitrateMax: 800,
             },
-            facingMode: "user"
+            facingMode: "user",
           }
         );
 
@@ -137,7 +160,7 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
       client.leave();
       window.onpopstate = null;
     };
-  }, []);
+  }, [channel]);
 
   const handleMute = () => {
     localTracksRef.current[0]?.setMuted(!muted);
@@ -156,7 +179,9 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
           {selectedUser.displayName?.[0]?.toUpperCase()}
         </div>
         <div>
-          <p className="text-white font-bold">{selectedUser.displayName || selectedUser.email}</p>
+          <p className="text-white font-bold">
+            {selectedUser.displayName || selectedUser.email}
+          </p>
           <p className="text-green-400 text-sm">Video Call in progress...</p>
         </div>
       </div>
@@ -165,7 +190,7 @@ function VideoCall({ currentUser, selectedUser, onEndCall, initiatorUid }) {
         <div
           id="remote-container"
           className="w-full h-full bg-gray-900"
-          style={{ minHeight: "300px" }}
+          style={{ minHeight: "300px", width: "100%", height: "100%" }}
         >
           {remoteUsers.length === 0 && (
             <div className="w-full h-full flex items-center justify-center">

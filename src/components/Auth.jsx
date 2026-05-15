@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { auth, googleProvider } from "../firebase.js";
 import {
@@ -7,7 +6,7 @@ import {
   signInWithPopup,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.js";
 
 function Auth() {
@@ -17,13 +16,16 @@ function Auth() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
 
+  // ── Always use setDoc + merge:true so it works for new AND returning users ──
   const saveUserToFirestore = async (user) => {
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName || user.email,
       photoURL: user.photoURL || null,
-      createdAt: new Date()
+      isOnline: true,
+      lastSeen: serverTimestamp(),
+      createdAt: new Date(),
     }, { merge: true });
   };
 
@@ -31,7 +33,9 @@ function Auth() {
     setError("");
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        // ── Set isOnline on email login ──
+        await saveUserToFirestore(result.user);
       } else {
         const result = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(result.user, { displayName });
@@ -55,7 +59,9 @@ function Auth() {
     <div className="flex items-center justify-center h-screen bg-gray-900">
       <div className="bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md">
         <h1 className="text-3xl font-bold text-white text-center mb-2">💬 MessageApp</h1>
-        <h2 className="text-gray-400 text-center mb-6">{isLogin ? "Welcome back!" : "Create an account"}</h2>
+        <h2 className="text-gray-400 text-center mb-6">
+          {isLogin ? "Welcome back!" : "Create an account"}
+        </h2>
 
         {!isLogin && (
           <input
@@ -114,4 +120,3 @@ function Auth() {
 }
 
 export default Auth;
-

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase.js";
 import {
   collection,
@@ -11,7 +11,7 @@ import {
   setDoc
 } from "firebase/firestore";
 
-function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
+function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar }) {
   const [contacts, setContacts] = useState([]);
   const [lastMessages, setLastMessages] = useState({});
   const [search, setSearch] = useState("");
@@ -21,13 +21,38 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
   const [showAddContact, setShowAddContact] = useState(false);
   const [showContacts] = useState(true);
 
+  // Track live status listeners so we can clean them up
+  const statusUnsubs = useRef({});
+
   useEffect(() => {
     const contactsRef = collection(db, "contacts", currentUser.uid, "list");
+
     const unsubscribe = onSnapshot(contactsRef, (snapshot) => {
-      const contactList = snapshot.docs.map((doc) => doc.data());
+      const contactList = snapshot.docs.map((d) => d.data());
       setContacts(contactList);
 
+      // ── For each contact, listen LIVE to their users doc for isOnline ──
       contactList.forEach((contact) => {
+        // Skip if already listening to this contact
+        if (statusUnsubs.current[contact.uid]) return;
+
+        const userRef = doc(db, "users", contact.uid);
+        const statusUnsub = onSnapshot(userRef, (userSnap) => {
+          if (userSnap.exists()) {
+            const liveData = userSnap.data();
+            setContacts((prev) =>
+              prev.map((c) =>
+                c.uid === contact.uid
+                  ? { ...c, isOnline: liveData.isOnline ?? false }
+                  : c
+              )
+            );
+          }
+        });
+
+        statusUnsubs.current[contact.uid] = statusUnsub;
+
+        // ── Listen to last message ──
         const conversationId = [currentUser.uid, contact.uid].sort().join("_");
         const q = query(
           collection(db, "messages"),
@@ -38,13 +63,18 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
           const last = msgs.sort((a, b) => b.createdAt - a.createdAt)[0];
           setLastMessages((prev) => ({
             ...prev,
-            [contact.uid]: last
+            [contact.uid]: last,
           }));
         });
       });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Clean up all status listeners
+      Object.values(statusUnsubs.current).forEach((unsub) => unsub());
+      statusUnsubs.current = {};
+    };
   }, [currentUser]);
 
   const handleAddContact = async () => {
@@ -79,7 +109,6 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
   };
 
   const handleDeleteContact = async (contact) => {
-    // Delete conversation messages
     const conversationId = [currentUser.uid, contact.uid].sort().join("_");
     const q = query(
       collection(db, "messages"),
@@ -90,8 +119,13 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
       await deleteDoc(doc(db, "messages", d.id));
     });
 
-    // Delete contact
     await deleteDoc(doc(db, "contacts", currentUser.uid, "list", contact.uid));
+
+    // Clean up status listener for deleted contact
+    if (statusUnsubs.current[contact.uid]) {
+      statusUnsubs.current[contact.uid]();
+      delete statusUnsubs.current[contact.uid];
+    }
 
     setMenuOpen(null);
     if (selectedUser?.uid === contact.uid) {
@@ -99,26 +133,27 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
     }
   };
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.displayName?.toLowerCase().includes(search.toLowerCase()) ||
-    contact.email?.toLowerCase().includes(search.toLowerCase())
+  const filteredContacts = contacts.filter(
+    (contact) =>
+      contact.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+      contact.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-   <div className="w-64 shrink-0 bg-gray-800 flex flex-col border-r border-gray-700 relative">
+    <div className="w-64 shrink-0 bg-gray-800 flex flex-col border-r border-gray-700 relative">
       {/* Header */}
       <div className="p-4 border-b border-gray-700">
         <div className="flex justify-between items-center mb-3">
-  <div className="flex items-center gap-2">
-    <h2 className="text-white font-bold text-lg">Messages</h2>
-  </div>
-  <button
-    onClick={() => setShowAddContact(!showAddContact)}
-    className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition"
-  >
-    + Add
-  </button>
-</div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-white font-bold text-lg">Messages</h2>
+          </div>
+          <button
+            onClick={() => setShowAddContact(!showAddContact)}
+            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition"
+          >
+            + Add
+          </button>
+        </div>
 
         {/* Add Contact Input */}
         {showAddContact && (
@@ -149,9 +184,11 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
         />
       </div>
 
-    
       {/* Contact List */}
-<div style={{ display: showContacts ? "block" : "none" }} className="flex-1 overflow-y-auto">
+      <div
+        style={{ display: showContacts ? "block" : "none" }}
+        className="flex-1 overflow-y-auto"
+      >
         {filteredContacts.length === 0 ? (
           <div className="text-center mt-8">
             <p className="text-gray-400 text-sm">No contacts yet!</p>
@@ -181,32 +218,39 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                        {contact.displayName?.[0]?.toUpperCase() || contact.email[0].toUpperCase()}
+                        {contact.displayName?.[0]?.toUpperCase() ||
+                          contact.email[0].toUpperCase()}
                       </div>
                     )}
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800 ${
-                      contact.isOnline ? "bg-green-500" : "bg-gray-500"
-                    }`} />
+                    {/* ── LIVE status dot ── */}
+                    <span
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800 ${
+                        contact.isOnline ? "bg-green-500" : "bg-gray-500"
+                      }`}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
-                    <p className="text-white font-medium text-sm">
+                      <p className="text-white font-medium text-sm">
                         {contact.displayName || contact.email}
-                    </p>
-                    <p className="text-gray-500 text-xs">
-                        {contact.email}
-                    </p>
+                      </p>
                       {lastMsg?.createdAt && (
                         <p className="text-gray-500 text-xs">
-                          {lastMsg.createdAt?.toDate?.().toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
+                          {lastMsg.createdAt
+                            ?.toDate?.()
+                            .toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                         </p>
                       )}
                     </div>
                     <p className="text-gray-400 text-xs truncate">
-                      {lastMsg ? lastMsg.text || "📷 Image" : contact.isOnline ? "🟢 Online" : "⚫ Offline"}
+                      {lastMsg
+                        ? lastMsg.text || "📷 Image"
+                        : contact.isOnline
+                        ? "🟢 Online"
+                        : "⚫ Offline"}
                     </p>
                   </div>
                 </div>
@@ -242,13 +286,14 @@ function UserList({ currentUser, onSelectUser, selectedUser, onHideSidebar  }) {
           })
         )}
       </div>
-    {/* Hide sidebar button - desktop only */}
-<button
-  onClick={onHideSidebar}
-  className="hidden md:flex absolute -right-3 top-1/2 transform -translate-y-1/2 z-20 bg-gray-600 hover:bg-gray-500 text-white rounded-r-full w-3 h-10 items-center justify-center shadow-lg transition text-xs"
->
-  ◀
-</button>
+
+      {/* Hide sidebar button */}
+      <button
+        onClick={onHideSidebar}
+        className="hidden md:flex absolute -right-3 top-1/2 transform -translate-y-1/2 z-20 bg-gray-600 hover:bg-gray-500 text-white rounded-r-full w-3 h-10 items-center justify-center shadow-lg transition text-xs"
+      >
+        ◀
+      </button>
     </div>
   );
 }

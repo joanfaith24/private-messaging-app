@@ -1,9 +1,15 @@
-
-import { auth } from "../firebase.js";
+import { auth, db } from "../firebase.js";
 import { signOut } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 function Navbar({ user }) {
   const handleLogout = async () => {
+    // ── Set offline BEFORE signing out ──
+    await setDoc(doc(db, "users", user.uid), {
+      isOnline: false,
+      lastSeen: serverTimestamp(),
+    }, { merge: true });
+
     await signOut(auth);
   };
 
